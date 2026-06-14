@@ -6,7 +6,7 @@ import {
   BudgetOptimizer as AIBudgetOptimizer, 
   ExportService, 
   FlightTracker 
-} from '../../../ai-integration/src/lib/services';
+} from './ai-services';
 import * as Types from '../types';
 
 // Initialize services
