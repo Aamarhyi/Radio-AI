@@ -1,67 +1,36 @@
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
-import { createServerClient as createSupabaseServerClient, type CookieOptions } from '@supabase/ssr';
-import { cookies } from 'next/headers';
 
-// Ensure environment variables are defined
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 /**
- * Standard Supabase client for client-side or general-purpose non-auth calls.
+ * Standard Supabase client for client-side or general-purpose calls.
  */
 export const supabase = createSupabaseClient(supabaseUrl, supabaseAnonKey);
 
 /**
- * Supabase Admin client using the Service Role Key.
- * DANGER: This bypasses Row Level Security (RLS). Use only in secure server environments
- * (e.g., background workers, admin tasks, generation-logic needing write access).
+ * Admin client using the Service Role Key (bypasses RLS).
+ * Use only in secure server environments.
  */
 export function getSupabaseAdmin() {
-  if (!supabaseServiceKey) {
-    console.warn('SUPABASE_SERVICE_ROLE_KEY is missing. Admin client might fail.');
-  }
   return createSupabaseClient(supabaseUrl, supabaseServiceKey, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-    },
+    auth: { persistSession: false, autoRefreshToken: false },
   });
 }
 
 /**
- * Creates a server-side Supabase client that reads and writes session cookies.
- * Perfect for Next.js App Router API Routes, Route Handlers, or Server Actions.
+ * Creates a server-side client (works in API routes).
  */
 export function createClient() {
-  const cookieStore = cookies();
-
-  return createSupabaseServerClient(
-    supabaseUrl,
-    supabaseAnonKey,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {
-            // This setAll might be called in a Server Component context where cookies cannot be written.
-            // Next.js middleware typically handles token refreshing, so this is safe to ignore.
-          }
-        },
-      },
-    }
-  );
+  return createSupabaseClient(supabaseUrl, supabaseAnonKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
 }
 
 /**
- * Helper to get the currently authenticated user from a server client.
- * Returns null if the user is not authenticated.
+ * Gets the current authenticated user from the session token.
+ * Call this in API routes where the user sends an Authorization header.
  */
 export async function getSessionUser() {
   try {
@@ -70,7 +39,6 @@ export async function getSessionUser() {
     if (error || !user) return null;
     return user;
   } catch (err) {
-    console.error('Error fetching session user:', err);
     return null;
   }
 }
